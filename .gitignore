@@ -35,3 +35,13 @@ out/
 
 ### VS Code ###
 .vscode/
+
+# 환경변수
+.env
+.env.*
+!.env.example
+
+# AI 작업 지침 (로컬 전용)
+AGENTS.md
+CLAUDE.md
+skills.md
