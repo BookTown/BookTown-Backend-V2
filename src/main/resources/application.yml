@@ -26,6 +26,7 @@ spring:
       api-key: ${OPENAI_API_KEY:}
     vectorstore:
       chroma:
+        initialize-schema: true
         client:
           host: ${CHROMA_HOST:http://localhost}
           port: ${CHROMA_PORT:8000}
