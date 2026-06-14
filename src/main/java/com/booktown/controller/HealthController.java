@@ -5,13 +5,17 @@ import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.redis.connection.RedisConnection;
+import org.springframework.data.redis.core.RedisConnectionUtils;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestClient;
 
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +34,15 @@ public class HealthController {
 
     @Value("${spring.ai.vectorstore.chroma.client.port:8000}")
     private int chromaPort;
+
+    private static final RestClient CHROMA_CLIENT;
+
+    static {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(Duration.ofSeconds(3));
+        factory.setReadTimeout(Duration.ofSeconds(3));
+        CHROMA_CLIENT = RestClient.builder().requestFactory(factory).build();
+    }
 
     @GetMapping("/health")
     public ResponseEntity<Map<String, Object>> checkHealth() {
@@ -72,12 +85,18 @@ public class HealthController {
     }
 
     private boolean checkRedis() {
+        RedisConnection connection = null;
         try {
-            redisTemplate.getConnectionFactory().getConnection().ping();
+            connection = redisTemplate.getConnectionFactory().getConnection();
+            connection.ping();
             return true;
         } catch (Exception e) {
             log.warn("Redis readiness check failed");
             return false;
+        } finally {
+            if (connection != null) {
+                RedisConnectionUtils.releaseConnection(connection, redisTemplate.getConnectionFactory());
+            }
         }
     }
 
@@ -93,7 +112,7 @@ public class HealthController {
 
     private boolean checkChroma() {
         try {
-            RestClient.create().get()
+            CHROMA_CLIENT.get()
                     .uri(chromaHost + ":" + chromaPort + "/api/v2/heartbeat")
                     .retrieve()
                     .toBodilessEntity();
