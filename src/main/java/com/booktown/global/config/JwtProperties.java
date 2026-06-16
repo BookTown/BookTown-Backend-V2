@@ -28,9 +28,19 @@ public class JwtProperties {
     @PostConstruct
     public void validate() {
         boolean isProd = Arrays.asList(environment.getActiveProfiles()).contains("prod");
-        if (isProd && (secret == null || secret.isBlank())) {
-            throw new IllegalStateException(
-                    "[보안] 운영 환경에서 JWT_SECRET이 설정되지 않았습니다. 기동을 중단합니다.");
+        if (isProd) {
+            if (secret == null || secret.isBlank()) {
+                throw new IllegalStateException(
+                        "[보안] 운영 환경에서 JWT_SECRET이 설정되지 않았습니다. 기동을 중단합니다.");
+            }
+            if (accessTokenExpirationMs <= 0) {
+                throw new IllegalStateException(
+                        "[보안] 운영 환경에서 JWT_ACCESS_TOKEN_EXPIRATION_MS가 올바르지 않습니다.");
+            }
+            if (refreshTokenExpirationMs <= 0) {
+                throw new IllegalStateException(
+                        "[보안] 운영 환경에서 JWT_REFRESH_TOKEN_EXPIRATION_MS가 올바르지 않습니다.");
+            }
         }
     }
 }
