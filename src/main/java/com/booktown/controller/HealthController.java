@@ -1,5 +1,8 @@
 package com.booktown.controller;
 
+import com.booktown.global.exception.ErrorCode;
+import com.booktown.global.response.ApiResponse;
+import com.booktown.global.response.ErrorResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
@@ -16,7 +19,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestClient;
 
 import java.time.Duration;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -45,33 +47,21 @@ public class HealthController {
     }
 
     @GetMapping("/health")
-    public ResponseEntity<Map<String, Object>> checkHealth() {
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("data", Map.of("status", "UP"));
-        body.put("meta", null);
-        return ResponseEntity.ok(body);
+    public ResponseEntity<ApiResponse<Map<String, String>>> checkHealth() {
+        return ResponseEntity.ok(ApiResponse.success(Map.of("status", "UP")));
     }
 
     @GetMapping("/health/readiness")
-    public ResponseEntity<Map<String, Object>> checkReadiness() {
+    public ResponseEntity<?> checkReadiness() {
         boolean healthy = checkMysql() && checkRedis() && checkMongo() && checkChroma();
 
         if (healthy) {
-            Map<String, Object> body = new LinkedHashMap<>();
-            body.put("data", Map.of("status", "UP"));
-            body.put("meta", null);
-            return ResponseEntity.ok(body);
+            return ResponseEntity.ok(ApiResponse.success(Map.of("status", "UP")));
         }
 
-        Map<String, Object> error = Map.of(
-                "code", "SERVICE_UNAVAILABLE",
-                "message", "하나 이상의 의존 서비스가 준비되지 않았습니다.",
-                "fieldErrors", List.of()
+        return ResponseEntity.status(503).body(
+                ErrorResponse.of(ErrorCode.SERVICE_UNAVAILABLE, null)
         );
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("error", error);
-        body.put("traceId", null);
-        return ResponseEntity.status(503).body(body);
     }
 
     private boolean checkMysql() {
