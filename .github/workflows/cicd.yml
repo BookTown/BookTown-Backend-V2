@@ -20,14 +20,19 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: booktown/booktown-backend-v2
 
 jobs:
   ci:
-    name: Test & Build
+    name: Test
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -50,10 +55,8 @@ jobs:
         env:
           SPRING_PROFILES_ACTIVE: test
 
-      - name: JAR 빌드
-        run: ./gradlew bootJar --no-daemon -x test
-
       - name: Docker 이미지 빌드 (smoke check)
+        if: github.event_name == 'pull_request'
         run: docker build -t booktown-backend:ci-check .
 
   cd:
@@ -61,6 +64,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: ci
     if: ((github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/master') && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy == 'true')
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write
@@ -107,16 +111,24 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_KEY }}
           script: |
-            set -e
+            set -euo pipefail
             cd /opt/booktown
 
-            PREVIOUS_TAG=$(docker inspect --format='{{index .Config.Image}}' booktown-backend 2>/dev/null || echo "none")
+            NEW_TAG="${{ steps.meta.outputs.version }}"
+            PREVIOUS_IMAGE=$(docker compose -f compose.prod.yaml ps -q backend \
+              | xargs -r docker inspect --format='{{.Config.Image}}' 2>/dev/null || true)
+            if [ -z "$PREVIOUS_IMAGE" ]; then
+              PREVIOUS_IMAGE="none"
+            fi
+
+            echo "이전 이미지: $PREVIOUS_IMAGE"
+            echo "새 이미지 태그: $NEW_TAG"
 
             echo "새 이미지 풀링 중..."
-            IMAGE_TAG=${{ steps.meta.outputs.version }} docker compose -f compose.prod.yaml pull backend
+            IMAGE_TAG="$NEW_TAG" docker compose -f compose.prod.yaml pull backend
 
             echo "컨테이너 교체 중..."
-            IMAGE_TAG=${{ steps.meta.outputs.version }} docker compose -f compose.prod.yaml up -d --no-deps backend
+            IMAGE_TAG="$NEW_TAG" docker compose -f compose.prod.yaml up -d --no-deps backend
 
             echo "Readiness 확인 중..."
             RETRIES=12
@@ -129,9 +141,9 @@ jobs:
               fi
               if [ "$i" = "$RETRIES" ]; then
                 echo "❌ Readiness 확인 실패 — 롤백 시작"
-                if [ "$PREVIOUS_TAG" != "none" ]; then
-                  IMAGE_TAG=$(echo "$PREVIOUS_TAG" | awk -F: '{print $2}') \
-                    docker compose -f compose.prod.yaml up -d --no-deps backend
+                if [ "$PREVIOUS_IMAGE" != "none" ]; then
+                  PREVIOUS_TAG="${PREVIOUS_IMAGE##*:}"
+                  IMAGE_TAG="$PREVIOUS_TAG" docker compose -f compose.prod.yaml up -d --no-deps backend
                 fi
                 exit 1
               fi
