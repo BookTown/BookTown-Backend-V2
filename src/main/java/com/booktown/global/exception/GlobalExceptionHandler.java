@@ -4,12 +4,12 @@ import com.booktown.global.response.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.List;
+import java.util.stream.Stream;
 
 @Slf4j
 @RestControllerAdvice
@@ -27,9 +27,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(
             MethodArgumentNotValidException e, HttpServletRequest request) {
-        List<ErrorResponse.FieldError> fieldErrors = e.getBindingResult().getFieldErrors().stream()
-                .map(fe -> new ErrorResponse.FieldError(fe.getField(), fe.getDefaultMessage()))
-                .toList();
+        List<ErrorResponse.FieldError> fieldErrors = Stream.concat(
+                e.getBindingResult().getFieldErrors().stream()
+                        .map(fe -> new ErrorResponse.FieldError(fe.getField(), fe.getDefaultMessage())),
+                e.getBindingResult().getGlobalErrors().stream()
+                        .map(ge -> new ErrorResponse.FieldError(ge.getObjectName(), ge.getDefaultMessage()))
+        ).toList();
         return ResponseEntity
                 .status(ErrorCode.INVALID_INPUT.getHttpStatus())
                 .body(ErrorResponse.of(ErrorCode.INVALID_INPUT, fieldErrors, extractTraceId(request)));
