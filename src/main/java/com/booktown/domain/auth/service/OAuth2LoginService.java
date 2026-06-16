@@ -16,9 +16,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientException;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.time.Duration;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
@@ -32,18 +32,21 @@ public class OAuth2LoginService {
     private final SocialAccountRepository socialAccountRepository;
     private final AuthService authService;
     private final OAuth2UserInfoExtractor userInfoExtractor;
+    private final OAuth2StateService stateService;
     private final WebClient.Builder webClientBuilder;
 
     public String buildAuthorizationUrl(String providerValue) {
         AuthProvider provider = parseProvider(providerValue);
         OAuth2Properties.Provider providerProperties = providerProperties(provider);
+        String state = UUID.randomUUID().toString();
+        stateService.save(provider, state);
 
         UriComponentsBuilder builder = UriComponentsBuilder
                 .fromUriString(providerProperties.getAuthorizationUri())
                 .queryParam("response_type", "code")
                 .queryParam("client_id", providerProperties.getClientId())
                 .queryParam("redirect_uri", providerProperties.getRedirectUri())
-                .queryParam("state", UUID.randomUUID());
+                .queryParam("state", state);
 
         if (!isBlank(providerProperties.getScope())) {
             builder.queryParam("scope", providerProperties.getScope());
@@ -59,6 +62,7 @@ public class OAuth2LoginService {
         }
 
         AuthProvider provider = parseProvider(providerValue);
+        stateService.validateAndConsume(provider, state);
         OAuth2Properties.Provider providerProperties = providerProperties(provider);
         Map<String, Object> tokenResponse = requestToken(provider, providerProperties, code, state);
         if (tokenResponse == null) {
@@ -79,8 +83,7 @@ public class OAuth2LoginService {
 
     public String buildSuccessRedirectUri(AuthService.TokenPair tokenPair) {
         return UriComponentsBuilder.fromUriString(properties.getSuccessRedirectUri())
-                .queryParam("accessToken", tokenPair.response().accessToken())
-                .queryParam("accessTokenExpiresInMs", tokenPair.response().accessTokenExpiresInMs())
+                .queryParam("status", "success")
                 .build(true)
                 .toUriString();
     }
@@ -94,12 +97,20 @@ public class OAuth2LoginService {
 
     private User connectOrCreateUser(AuthProvider provider, OAuth2UserInfo userInfo) {
         User user = userRepository.findByEmail(userInfo.email())
+                .map(existingUser -> connectVerifiedEmailUser(existingUser, userInfo))
                 .orElseGet(() -> userRepository.save(User.social(
                         userInfo.email(),
                         userInfo.nickname(),
                         userInfo.profileImageUrl()
                 )));
         socialAccountRepository.save(SocialAccount.connect(user, provider, userInfo.providerId()));
+        return user;
+    }
+
+    private User connectVerifiedEmailUser(User user, OAuth2UserInfo userInfo) {
+        if (!userInfo.emailVerified()) {
+            throw new CustomException(ErrorCode.OAUTH2_LOGIN_FAILED);
+        }
         return user;
     }
 
@@ -130,8 +141,9 @@ public class OAuth2LoginService {
                     .retrieve()
                     .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {
                     })
+                    .timeout(Duration.ofSeconds(5))
                     .block();
-        } catch (WebClientException e) {
+        } catch (RuntimeException e) {
             throw new CustomException(ErrorCode.OAUTH2_LOGIN_FAILED);
         }
     }
@@ -145,8 +157,9 @@ public class OAuth2LoginService {
                     .retrieve()
                     .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {
                     })
+                    .timeout(Duration.ofSeconds(5))
                     .block();
-        } catch (WebClientException e) {
+        } catch (RuntimeException e) {
             throw new CustomException(ErrorCode.OAUTH2_LOGIN_FAILED);
         }
     }

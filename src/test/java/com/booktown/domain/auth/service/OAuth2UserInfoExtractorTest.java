@@ -20,6 +20,7 @@ class OAuth2UserInfoExtractorTest {
                 "id", 12345,
                 "kakao_account", Map.of(
                         "email", "kakao@example.com",
+                        "is_email_verified", true,
                         "profile", Map.of(
                                 "nickname", "카카오유저",
                                 "profile_image_url", "https://example.com/kakao.png"
@@ -29,6 +30,7 @@ class OAuth2UserInfoExtractorTest {
 
         assertThat(userInfo.providerId()).isEqualTo("12345");
         assertThat(userInfo.email()).isEqualTo("kakao@example.com");
+        assertThat(userInfo.emailVerified()).isTrue();
         assertThat(userInfo.nickname()).isEqualTo("카카오유저");
         assertThat(userInfo.profileImageUrl()).isEqualTo("https://example.com/kakao.png");
     }
@@ -38,12 +40,14 @@ class OAuth2UserInfoExtractorTest {
         OAuth2UserInfo userInfo = extractor.extract(AuthProvider.GOOGLE, Map.of(
                 "sub", "google-sub",
                 "email", "google@example.com",
+                "email_verified", true,
                 "name", "Google User",
                 "picture", "https://example.com/google.png"
         ));
 
         assertThat(userInfo.providerId()).isEqualTo("google-sub");
         assertThat(userInfo.email()).isEqualTo("google@example.com");
+        assertThat(userInfo.emailVerified()).isTrue();
         assertThat(userInfo.nickname()).isEqualTo("Google User");
         assertThat(userInfo.profileImageUrl()).isEqualTo("https://example.com/google.png");
     }
@@ -61,6 +65,7 @@ class OAuth2UserInfoExtractorTest {
 
         assertThat(userInfo.providerId()).isEqualTo("naver-id");
         assertThat(userInfo.email()).isEqualTo("naver@example.com");
+        assertThat(userInfo.emailVerified()).isTrue();
         assertThat(userInfo.nickname()).isEqualTo("네이버유저");
         assertThat(userInfo.profileImageUrl()).isEqualTo("https://example.com/naver.png");
     }

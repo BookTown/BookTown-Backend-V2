@@ -31,7 +31,11 @@ public class JwtTokenProvider {
     }
 
     public Long getUserId(String token) {
-        return Long.valueOf(parseClaims(token).getSubject());
+        try {
+            return Long.valueOf(parseClaims(token).getSubject());
+        } catch (NumberFormatException e) {
+            throw new CustomException(ErrorCode.INVALID_TOKEN);
+        }
     }
 
     public long getRefreshTokenExpirationMs() {

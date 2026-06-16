@@ -66,7 +66,9 @@ public class User {
 
     public void updateProfile(String nickname, String profileImageUrl) {
         this.nickname = nickname;
-        this.profileImageUrl = profileImageUrl;
+        if (profileImageUrl != null) {
+            this.profileImageUrl = profileImageUrl;
+        }
     }
 
     @PrePersist

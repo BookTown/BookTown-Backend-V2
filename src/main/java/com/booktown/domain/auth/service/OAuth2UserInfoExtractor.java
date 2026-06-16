@@ -28,17 +28,19 @@ public class OAuth2UserInfoExtractor {
         Map<String, Object> profile = mapValue(kakaoAccount.get("profile"));
         String providerId = required(attributes.get("id"));
         String email = required(kakaoAccount.get("email"));
+        boolean emailVerified = Boolean.TRUE.equals(booleanValue(kakaoAccount.get("is_email_verified")));
         String nickname = fallback(stringValue(profile.get("nickname")), emailPrefix(email), "kakao_" + providerId);
         String profileImageUrl = stringValue(profile.get("profile_image_url"));
-        return new OAuth2UserInfo(providerId, email, nickname, profileImageUrl);
+        return new OAuth2UserInfo(providerId, email, emailVerified, nickname, profileImageUrl);
     }
 
     private OAuth2UserInfo extractGoogle(Map<String, Object> attributes) {
         String providerId = required(attributes.get("sub"));
         String email = required(attributes.get("email"));
+        boolean emailVerified = Boolean.TRUE.equals(booleanValue(attributes.get("email_verified")));
         String nickname = fallback(stringValue(attributes.get("name")), emailPrefix(email), "google_" + providerId);
         String profileImageUrl = stringValue(attributes.get("picture"));
-        return new OAuth2UserInfo(providerId, email, nickname, profileImageUrl);
+        return new OAuth2UserInfo(providerId, email, emailVerified, nickname, profileImageUrl);
     }
 
     private OAuth2UserInfo extractNaver(Map<String, Object> attributes) {
@@ -52,7 +54,7 @@ public class OAuth2UserInfoExtractor {
                 "naver_" + providerId
         );
         String profileImageUrl = stringValue(response.get("profile_image"));
-        return new OAuth2UserInfo(providerId, email, nickname, profileImageUrl);
+        return new OAuth2UserInfo(providerId, email, true, nickname, profileImageUrl);
     }
 
     @SuppressWarnings("unchecked")
@@ -87,5 +89,15 @@ public class OAuth2UserInfoExtractor {
 
     private String stringValue(Object value) {
         return value == null ? null : String.valueOf(value);
+    }
+
+    private Boolean booleanValue(Object value) {
+        if (value instanceof Boolean booleanValue) {
+            return booleanValue;
+        }
+        if (value instanceof String stringValue) {
+            return Boolean.parseBoolean(stringValue);
+        }
+        return null;
     }
 }

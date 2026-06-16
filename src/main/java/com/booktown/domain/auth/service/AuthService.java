@@ -56,11 +56,10 @@ public class AuthService {
 
         jwtTokenProvider.validateToken(refreshToken);
         Long userId = jwtTokenProvider.getUserId(refreshToken);
-        refreshTokenService.validate(userId, refreshToken);
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-        return issueTokens(user);
+        return rotateTokens(user, refreshToken);
     }
 
     public void logout(Long userId) {
@@ -75,6 +74,18 @@ public class AuthService {
                 new AuthTokenResponse(accessToken, jwtProperties.getAccessTokenExpirationMs()),
                 refreshToken,
                 jwtProperties.getRefreshTokenExpirationMs()
+        );
+    }
+
+    private TokenPair rotateTokens(User user, String oldRefreshToken) {
+        String accessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getEmail());
+        String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), user.getEmail());
+        long refreshTokenExpirationMs = jwtTokenProvider.getRefreshTokenExpirationMs();
+        refreshTokenService.rotate(user.getId(), oldRefreshToken, refreshToken, refreshTokenExpirationMs);
+        return new TokenPair(
+                new AuthTokenResponse(accessToken, jwtProperties.getAccessTokenExpirationMs()),
+                refreshToken,
+                refreshTokenExpirationMs
         );
     }
 
