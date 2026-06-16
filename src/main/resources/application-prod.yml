@@ -1,0 +1,14 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  ai:
+    vectorstore:
+      chroma:
+        initialize-schema: false
+
+logging:
+  level:
+    com.booktown: INFO
+    root: WARN
