@@ -46,7 +46,7 @@ public class SocialAccount {
     @Column(nullable = false, length = 20)
     private AuthProvider provider;
 
-    @Column(name = "provider_id", nullable = false, length = 100)
+    @Column(name = "provider_id", nullable = false, length = 255)
     private String providerId;
 
     @Column(name = "created_at", nullable = false)
