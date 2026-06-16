@@ -52,7 +52,7 @@ public class OAuth2LoginService {
             builder.queryParam("scope", providerProperties.getScope());
         }
 
-        return builder.build(true).toUriString();
+        return builder.build().encode().toUriString();
     }
 
     @Transactional

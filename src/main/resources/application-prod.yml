@@ -1,4 +1,8 @@
 spring:
+  sql:
+    init:
+      mode: never
+      schema-locations: classpath:db/schema.sql
   jpa:
     hibernate:
       ddl-auto: validate
