@@ -67,7 +67,7 @@ public class AuthService {
         refreshTokenService.delete(userId);
     }
 
-    private TokenPair issueTokens(User user) {
+    TokenPair issueTokens(User user) {
         String accessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getEmail());
         String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), user.getEmail());
         refreshTokenService.save(user.getId(), refreshToken, jwtTokenProvider.getRefreshTokenExpirationMs());
