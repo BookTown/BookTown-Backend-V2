@@ -18,8 +18,8 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
-    mongodb:
-      uri: ${MONGODB_URI:mongodb://booktown:booktown@localhost:27017/booktown?authSource=admin}
+  mongodb:
+    uri: ${MONGODB_URI:mongodb://booktown:booktown@localhost:27017/booktown?authSource=admin}
   ai:
     openai:
       api-key: ${OPENAI_API_KEY:}
