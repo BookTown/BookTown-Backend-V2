@@ -47,13 +47,20 @@ public class HealthController {
     }
 
     @GetMapping("/health")
-    public ResponseEntity<ApiResponse<Map<String, String>>> checkHealth() {
-        return ResponseEntity.ok(ApiResponse.success(Map.of("status", "UP")));
+    public ResponseEntity<ApiResponse<Map<String, Object>>> checkHealth() {
+        Map<String, Boolean> services = checkServices();
+        boolean healthy = services.values().stream().allMatch(Boolean::booleanValue);
+
+        return ResponseEntity.ok(ApiResponse.success(Map.of(
+                "status", healthy ? "UP" : "DEGRADED",
+                "services", services
+        )));
     }
 
     @GetMapping("/health/readiness")
     public ResponseEntity<?> checkReadiness() {
-        boolean healthy = checkMysql() && checkRedis() && checkMongo() && checkChroma();
+        Map<String, Boolean> services = checkServices();
+        boolean healthy = services.values().stream().allMatch(Boolean::booleanValue);
 
         if (healthy) {
             return ResponseEntity.ok(ApiResponse.success(Map.of("status", "UP")));
@@ -61,6 +68,15 @@ public class HealthController {
 
         return ResponseEntity.status(503).body(
                 ErrorResponse.of(ErrorCode.SERVICE_UNAVAILABLE, null)
+        );
+    }
+
+    private Map<String, Boolean> checkServices() {
+        return Map.of(
+                "mysql", checkMysql(),
+                "redis", checkRedis(),
+                "mongodb", checkMongo(),
+                "chroma", checkChroma()
         );
     }
 

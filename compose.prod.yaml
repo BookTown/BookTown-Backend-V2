@@ -3,6 +3,7 @@ services:
   backend:
     image: ghcr.io/booktown/booktown-backend-v2:${IMAGE_TAG:-latest}
     restart: unless-stopped
+    mem_limit: 512m
     ports:
       - "127.0.0.1:8080:8080"
     env_file:
@@ -36,6 +37,7 @@ services:
   mysql:
     image: mysql:8.4.5
     restart: unless-stopped
+    mem_limit: 512m
     environment:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-booktown}
       MYSQL_USER: ${MYSQL_USER:-booktown}
@@ -58,6 +60,7 @@ services:
   redis:
     image: redis:7.4.3-alpine
     restart: unless-stopped
+    mem_limit: 128m
     command: redis-server --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
@@ -75,6 +78,7 @@ services:
   mongodb:
     image: mongo:7.0
     restart: unless-stopped
+    mem_limit: 512m
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME:-booktown}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
@@ -96,6 +100,7 @@ services:
   chroma:
     image: chromadb/chroma:1.0.12
     restart: unless-stopped
+    mem_limit: 384m
     volumes:
       - chroma_data:/chroma/chroma
     logging:
@@ -107,10 +112,12 @@ services:
   prometheus:
     image: prom/prometheus:v2.55.1
     restart: unless-stopped
+    mem_limit: 384m
     ports:
       - "127.0.0.1:9090:9090"
     volumes:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/rules:/etc/prometheus/rules:ro
       - prometheus_data:/prometheus
     command:
       - --config.file=/etc/prometheus/prometheus.yml
@@ -118,8 +125,11 @@ services:
       - --storage.tsdb.retention.time=3d
       - --storage.tsdb.retention.size=1GB
       - --web.enable-lifecycle
+      - --web.external-url=http://localhost:9090
     depends_on:
       backend:
+        condition: service_started
+      alertmanager:
         condition: service_started
     logging:
       driver: json-file
@@ -130,6 +140,7 @@ services:
   loki:
     image: grafana/loki:2.9.8
     restart: unless-stopped
+    mem_limit: 384m
     ports:
       - "127.0.0.1:3100:3100"
     volumes:
@@ -142,13 +153,15 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  promtail:
-    image: grafana/promtail:2.9.8
+  alloy:
+    image: grafana/alloy:v1.5.1
     restart: unless-stopped
+    mem_limit: 256m
     volumes:
-      - ./monitoring/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+      - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-    command: -config.file=/etc/promtail/config.yml
+      - /var/log/nginx:/var/log/nginx:ro
+    command: run --server.http.listen-addr=0.0.0.0:12345 /etc/alloy/config.alloy
     depends_on:
       loki:
         condition: service_started
@@ -161,6 +174,7 @@ services:
   grafana:
     image: grafana/grafana:11.4.0
     restart: unless-stopped
+    mem_limit: 256m
     ports:
       - "127.0.0.1:3001:3000"
     environment:
@@ -171,11 +185,107 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
       - ./monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
     depends_on:
       prometheus:
         condition: service_started
       loki:
         condition: service_started
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    restart: unless-stopped
+    mem_limit: 128m
+    ports:
+      - "127.0.0.1:9093:9093"
+    volumes:
+      - ./monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    restart: unless-stopped
+    mem_limit: 128m
+    ports:
+      - "127.0.0.1:9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --path.rootfs=/rootfs
+      - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    restart: unless-stopped
+    mem_limit: 256m
+    ports:
+      - "127.0.0.1:8081:8080"
+    privileged: true
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  mysql-backup:
+    image: mysql:8.4.5
+    restart: unless-stopped
+    mem_limit: 256m
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-booktown}
+      MYSQL_USER: ${MYSQL_USER:-booktown}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_BACKUP_INTERVAL_SECONDS: ${MYSQL_BACKUP_INTERVAL_SECONDS:-86400}
+      MYSQL_BACKUP_RETENTION_DAYS: ${MYSQL_BACKUP_RETENTION_DAYS:-7}
+    volumes:
+      - ./backups/mysql:/backup
+    command:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        mkdir -p /backup
+        while true; do
+          TS=$$(date +%Y%m%d%H%M%S)
+          TARGET="/backup/booktown_$${TS}.sql.gz"
+          echo "MySQL backup start: $${TARGET}"
+          mysqldump -hmysql -u"$${MYSQL_USER}" -p"$${MYSQL_PASSWORD}" "$${MYSQL_DATABASE}" | gzip > "$${TARGET}"
+          find /backup -type f -name '*.sql.gz' -mtime +"$${MYSQL_BACKUP_RETENTION_DAYS}" -delete
+          echo "MySQL backup completed: $${TARGET}"
+          sleep "$${MYSQL_BACKUP_INTERVAL_SECONDS}"
+        done
+    depends_on:
+      mysql:
+        condition: service_healthy
     logging:
       driver: json-file
       options:
@@ -190,3 +300,4 @@ volumes:
   prometheus_data:
   loki_data:
   grafana_data:
+  alertmanager_data:
