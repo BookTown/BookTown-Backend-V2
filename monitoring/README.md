@@ -4,7 +4,7 @@ Prometheus, Grafana, Loki, Grafana Alloy 운영 설정입니다.
 
 ## 접속
 
-운영 서버에서는 모니터링 포트를 외부에 열지 않고 localhost에만 바인딩합니다.
+기본 운영 서버에서는 모니터링 포트를 외부에 열지 않고 localhost에만 바인딩합니다.
 
 ```bash
 ssh -i ~/.ssh/booktown-v2.pem \
@@ -18,6 +18,28 @@ ssh -i ~/.ssh/booktown-v2.pem \
 - Prometheus: http://localhost:9090
 - Alertmanager: http://localhost:9093
 
+## 배포형 Grafana 접근
+
+팀 접근이 필요하면 `grafana.booktown.shop`을 사용합니다.
+
+필수 전제:
+
+- Cloudflare DNS에 `grafana.booktown.shop` 추가
+- Cloudflare Access 애플리케이션과 허용 사용자 정책 설정
+- EC2 보안그룹은 80/443만 공개, Grafana 3001은 외부 공개 금지
+- `/opt/booktown/.env`의 `GRAFANA_ROOT_URL=https://grafana.booktown.shop` 설정
+
+EC2에서 Nginx route를 설치합니다.
+
+```bash
+cd /opt/booktown
+CERTBOT_EMAIL=you@example.com sudo -E ./scripts/install-grafana-nginx.sh
+```
+
+설치 후 접속 주소:
+
+- Grafana: https://grafana.booktown.shop
+
 ## 필수 환경변수
 
 `/opt/booktown/.env`에 Grafana 관리자 계정을 추가합니다.
@@ -25,10 +47,12 @@ ssh -i ~/.ssh/booktown-v2.pem \
 ```env
 GRAFANA_ADMIN_USER=admin
 GRAFANA_ADMIN_PASSWORD=change-me
-GRAFANA_ROOT_URL=http://localhost:3001
+GRAFANA_ROOT_URL=https://grafana.booktown.shop
 MYSQL_BACKUP_INTERVAL_SECONDS=86400
 MYSQL_BACKUP_RETENTION_DAYS=7
 ```
+
+SSH 포워딩으로만 Grafana를 볼 때는 `GRAFANA_ROOT_URL=http://localhost:3001`을 사용할 수 있지만, 배포형 접근을 적용하면 위 값처럼 운영 도메인으로 맞춥니다.
 
 ## 수집 대상
 
