@@ -1,6 +1,6 @@
 # BookTown Monitoring
 
-Prometheus, Grafana, Loki, Promtail 운영 설정입니다.
+Prometheus, Grafana, Loki, Grafana Alloy 운영 설정입니다.
 
 ## 접속
 
@@ -10,11 +10,13 @@ Prometheus, Grafana, Loki, Promtail 운영 설정입니다.
 ssh -i ~/.ssh/booktown-v2.pem \
   -L 3001:127.0.0.1:3001 \
   -L 9090:127.0.0.1:9090 \
+  -L 9093:127.0.0.1:9093 \
   ubuntu@18.204.158.57
 ```
 
 - Grafana: http://localhost:3001
 - Prometheus: http://localhost:9090
+- Alertmanager: http://localhost:9093
 
 ## 필수 환경변수
 
@@ -24,14 +26,51 @@ ssh -i ~/.ssh/booktown-v2.pem \
 GRAFANA_ADMIN_USER=admin
 GRAFANA_ADMIN_PASSWORD=change-me
 GRAFANA_ROOT_URL=http://localhost:3001
+MYSQL_BACKUP_INTERVAL_SECONDS=86400
+MYSQL_BACKUP_RETENTION_DAYS=7
 ```
 
 ## 수집 대상
 
-- Prometheus: `backend:8080/api/v1/actuator/prometheus`
-- Loki: Docker Compose 서비스 로그
+- Prometheus: `backend:8081/actuator/prometheus`
+- Node Exporter: EC2 디스크/메모리 지표
+- cAdvisor: Docker 컨테이너 메모리 지표
+- Loki: Grafana Alloy가 Docker Compose 서비스 로그와 Nginx 로그 수집
+- Alertmanager: Prometheus alert rule 수신
 
 ## 보관 정책
 
 - Prometheus: 3일 또는 1GB
 - Loki: 72시간
+
+## Trace ID 로그 검색
+
+백엔드는 모든 요청에 `X-Trace-Id`를 부여하고 JSON 로그의 `trace_id` 필드에 기록합니다.
+
+Grafana Explore 또는 대시보드 로그 패널에서 다음처럼 검색합니다.
+
+```logql
+{service="backend"} | json | trace_id="TRACE_ID"
+```
+
+## 백업과 복구 리허설
+
+`mysql-backup` 컨테이너는 `/opt/booktown/backups/mysql`에 gzip SQL dump를 생성합니다.
+
+복구 리허설은 운영 DB를 덮어쓰지 않고 별도 DB에 복원합니다.
+
+```bash
+cd /opt/booktown
+sudo MYSQL_ROOT_PASSWORD="$MYSQL_ROOT_PASSWORD" ./scripts/mysql-restore-rehearsal.sh ./backups/mysql/<dump-file>.sql.gz
+```
+
+## 알림 규칙
+
+Prometheus rule은 다음을 감지합니다.
+
+- Backend 5xx 증가
+- 인증 실패 급증
+- AI 호출 실패 또는 rate limit
+- 디스크 여유 15% 미만
+- 컨테이너 메모리 90% 초과
+- MySQL backup 컨테이너 미관측

@@ -104,6 +104,16 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: EC2 운영 파일 동기화
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_KEY }}
+          source: "compose.prod.yaml,monitoring,scripts"
+          target: "/tmp/booktown-deploy"
+          rm: true
+
       - name: EC2 배포
         uses: appleboy/ssh-action@v1
         with:
@@ -113,6 +123,22 @@ jobs:
           script: |
             set -euo pipefail
             cd /opt/booktown
+
+            echo "운영 파일 동기화 중..."
+            sudo cp /tmp/booktown-deploy/compose.prod.yaml /opt/booktown/compose.prod.yaml
+            sudo rm -rf /opt/booktown/monitoring /opt/booktown/scripts
+            sudo cp -R /tmp/booktown-deploy/monitoring /opt/booktown/monitoring
+            sudo cp -R /tmp/booktown-deploy/scripts /opt/booktown/scripts
+            sudo chmod +x /opt/booktown/scripts/*.sh
+            sudo mkdir -p /opt/booktown/backups/mysql
+
+            echo "필수 환경변수 확인 중..."
+            for key in MYSQL_PASSWORD MYSQL_ROOT_PASSWORD MONGO_PASSWORD REDIS_PASSWORD GRAFANA_ADMIN_PASSWORD; do
+              if ! sudo grep -q "^$key=" /opt/booktown/.env; then
+                echo "❌ /opt/booktown/.env에 $key 값이 필요합니다."
+                exit 1
+              fi
+            done
 
             NEW_TAG="${{ steps.meta.outputs.version }}"
             PREVIOUS_IMAGE=$(sudo docker compose -f compose.prod.yaml ps -q backend \
@@ -125,10 +151,10 @@ jobs:
             echo "새 이미지 태그: $NEW_TAG"
 
             echo "새 이미지 풀링 중..."
-            sudo env IMAGE_TAG="$NEW_TAG" docker compose -f compose.prod.yaml pull backend
+            sudo env IMAGE_TAG="$NEW_TAG" docker compose -f compose.prod.yaml pull
 
-            echo "컨테이너 교체 중..."
-            sudo env IMAGE_TAG="$NEW_TAG" docker compose -f compose.prod.yaml up -d --no-deps backend
+            echo "컨테이너 교체 및 운영 스택 기동 중..."
+            sudo env IMAGE_TAG="$NEW_TAG" docker compose -f compose.prod.yaml up -d
 
             echo "Readiness 확인 중..."
             RETRIES=12

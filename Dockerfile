@@ -22,7 +22,7 @@ COPY --from=builder /app/build/libs/*.jar app.jar
 RUN chown booktown:booktown app.jar
 USER booktown
 
-EXPOSE 8080
+EXPOSE 8080 8081
 
 ENTRYPOINT ["java", \
   "-XX:+UseContainerSupport", \

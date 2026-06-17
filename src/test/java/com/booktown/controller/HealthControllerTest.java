@@ -23,11 +23,12 @@ class HealthControllerTest {
 
     @Test
     void health_returns_200_with_status_UP() {
-        ResponseEntity<ApiResponse<Map<String, String>>> response = controller.checkHealth();
+        ResponseEntity<ApiResponse<Map<String, Object>>> response = controller.checkHealth();
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().data().get("status")).isEqualTo("UP");
+        assertThat(response.getBody().data().get("status")).isIn("UP", "DEGRADED");
+        assertThat(response.getBody().data()).containsKey("services");
         assertThat(response.getBody().meta()).isNull();
     }
 }

@@ -1,8 +1,12 @@
 package com.booktown.global.exception;
 
 import com.booktown.global.response.ErrorResponse;
+import com.booktown.global.logging.TraceIdFilter;
+import com.booktown.global.observability.BooktownMetrics;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -13,12 +17,16 @@ import java.util.stream.Stream;
 
 @Slf4j
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
+
+    private final BooktownMetrics metrics;
 
     @ExceptionHandler(CustomException.class)
     public ResponseEntity<ErrorResponse> handleCustomException(CustomException e, HttpServletRequest request) {
         log.warn("CustomException: {} - {}", e.getErrorCode(), e.getMessage());
         ErrorCode errorCode = e.getErrorCode();
+        recordAuthFailure(errorCode);
         return ResponseEntity
                 .status(errorCode.getHttpStatus())
                 .body(ErrorResponse.of(errorCode, extractTraceId(request)));
@@ -47,7 +55,19 @@ public class GlobalExceptionHandler {
     }
 
     private String extractTraceId(HttpServletRequest request) {
-        String traceId = request.getHeader("X-Trace-Id");
-        return (traceId != null) ? traceId : null;
+        String traceId = request.getHeader(TraceIdFilter.TRACE_ID_HEADER);
+        return (traceId != null) ? traceId : MDC.get(TraceIdFilter.TRACE_ID_MDC_KEY);
+    }
+
+    private void recordAuthFailure(ErrorCode errorCode) {
+        if (errorCode == ErrorCode.UNAUTHORIZED
+                || errorCode == ErrorCode.FORBIDDEN
+                || errorCode == ErrorCode.INVALID_TOKEN
+                || errorCode == ErrorCode.EXPIRED_TOKEN
+                || errorCode == ErrorCode.REFRESH_TOKEN_NOT_FOUND
+                || errorCode == ErrorCode.REFRESH_TOKEN_REUSED
+                || errorCode == ErrorCode.OAUTH2_LOGIN_FAILED) {
+            metrics.recordAuthFailure(errorCode.name());
+        }
     }
 }
