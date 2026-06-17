@@ -3,10 +3,13 @@ package com.booktown.global.config;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.servers.Server;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.util.List;
 
 @Configuration
 public class OpenApiConfig {
@@ -16,6 +19,10 @@ public class OpenApiConfig {
     @Bean
     public OpenAPI openAPI() {
         return new OpenAPI()
+                .servers(List.of(
+                        new Server().url("/api/v1").description("Current API base path"),
+                        new Server().url("https://api.booktown.shop/api/v1").description("Production API")
+                ))
                 .info(new Info()
                         .title("BookTown API")
                         .description("책고을 백엔드 API 명세")

@@ -1,35 +1,29 @@
 package com.booktown.domain.user.controller;
 
 import com.booktown.domain.auth.security.UserPrincipal;
+import com.booktown.domain.user.controller.api.UserApi;
 import com.booktown.domain.user.dto.UpdateProfileRequest;
 import com.booktown.domain.user.dto.UserResponse;
 import com.booktown.domain.user.service.UserService;
 import com.booktown.global.response.ApiResponse;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/users")
-public class UserController {
+public class UserController implements UserApi {
 
     private final UserService userService;
 
-    @GetMapping("/me")
-    public ApiResponse<UserResponse> getMe(@AuthenticationPrincipal UserPrincipal principal) {
+    @Override
+    public ApiResponse<UserResponse> getMe(UserPrincipal principal) {
         return ApiResponse.success(userService.getMe(principal.getId()));
     }
 
-    @PatchMapping("/me")
+    @Override
     public ApiResponse<UserResponse> updateMe(
-            @AuthenticationPrincipal UserPrincipal principal,
-            @Valid @RequestBody UpdateProfileRequest request
+            UserPrincipal principal,
+            UpdateProfileRequest request
     ) {
         return ApiResponse.success(userService.updateMe(principal.getId(), request));
     }

@@ -1,5 +1,6 @@
 package com.booktown.controller;
 
+import com.booktown.controller.api.HealthApi;
 import com.booktown.global.exception.ErrorCode;
 import com.booktown.global.response.ApiResponse;
 import com.booktown.global.response.ErrorResponse;
@@ -14,7 +15,6 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestClient;
 
@@ -25,7 +25,7 @@ import java.util.Map;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-public class HealthController {
+public class HealthController implements HealthApi {
 
     private final JdbcTemplate jdbcTemplate;
     private final StringRedisTemplate redisTemplate;
@@ -46,7 +46,7 @@ public class HealthController {
         CHROMA_CLIENT = RestClient.builder().requestFactory(factory).build();
     }
 
-    @GetMapping("/health")
+    @Override
     public ResponseEntity<ApiResponse<Map<String, Object>>> checkHealth() {
         Map<String, Boolean> services = checkServices();
         boolean healthy = services.values().stream().allMatch(Boolean::booleanValue);
@@ -57,7 +57,7 @@ public class HealthController {
         )));
     }
 
-    @GetMapping("/health/readiness")
+    @Override
     public ResponseEntity<?> checkReadiness() {
         Map<String, Boolean> services = checkServices();
         boolean healthy = services.values().stream().allMatch(Boolean::booleanValue);
