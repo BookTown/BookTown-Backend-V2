@@ -41,7 +41,4 @@ out/
 .env.*
 !.env.example
 
-# AI 작업 지침 (로컬 전용)
-AGENTS.md
-CLAUDE.md
-skills.md
+# AI 작업 지침은 하네스 문서이므로 저장소에서 추적한다.
