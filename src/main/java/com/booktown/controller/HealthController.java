@@ -1,10 +1,9 @@
 package com.booktown.controller;
 
+import com.booktown.controller.api.HealthApi;
 import com.booktown.global.exception.ErrorCode;
 import com.booktown.global.response.ApiResponse;
 import com.booktown.global.response.ErrorResponse;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
@@ -16,7 +15,6 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestClient;
 
@@ -27,8 +25,7 @@ import java.util.Map;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@Tag(name = "Health", description = "서비스와 의존 인프라 상태 확인 API")
-public class HealthController {
+public class HealthController implements HealthApi {
 
     private final JdbcTemplate jdbcTemplate;
     private final StringRedisTemplate redisTemplate;
@@ -49,8 +46,7 @@ public class HealthController {
         CHROMA_CLIENT = RestClient.builder().requestFactory(factory).build();
     }
 
-    @GetMapping("/health")
-    @Operation(summary = "서비스 상태 조회", description = "MySQL, Redis, MongoDB, ChromaDB 연결 상태를 포함한 서비스 상태를 조회합니다.")
+    @Override
     public ResponseEntity<ApiResponse<Map<String, Object>>> checkHealth() {
         Map<String, Boolean> services = checkServices();
         boolean healthy = services.values().stream().allMatch(Boolean::booleanValue);
@@ -61,8 +57,7 @@ public class HealthController {
         )));
     }
 
-    @GetMapping("/health/readiness")
-    @Operation(summary = "배포 readiness 조회", description = "배포 후 트래픽 수신 가능 여부를 판단하기 위한 readiness endpoint입니다.")
+    @Override
     public ResponseEntity<?> checkReadiness() {
         Map<String, Boolean> services = checkServices();
         boolean healthy = services.values().stream().allMatch(Boolean::booleanValue);
