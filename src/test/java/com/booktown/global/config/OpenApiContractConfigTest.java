@@ -1,7 +1,6 @@
 package com.booktown.global.config;
 
 import io.swagger.v3.oas.models.OpenAPI;
-import io.swagger.v3.oas.models.Paths;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -11,7 +10,6 @@ class OpenApiContractConfigTest {
     @Test
     void apiContractCustomizerAddsFrontendContractPaths() {
         OpenAPI openAPI = new OpenApiConfig().openAPI();
-        openAPI.paths(new Paths());
 
         new OpenApiContractConfig()
                 .apiContractCustomizer()

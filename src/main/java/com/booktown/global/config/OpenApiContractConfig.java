@@ -3,6 +3,7 @@ package com.booktown.global.config;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.PathItem;
+import io.swagger.v3.oas.models.Paths;
 import io.swagger.v3.oas.models.media.ArraySchema;
 import io.swagger.v3.oas.models.media.BooleanSchema;
 import io.swagger.v3.oas.models.media.Content;
@@ -33,16 +34,21 @@ public class OpenApiContractConfig {
     public OpenApiCustomizer apiContractCustomizer() {
         return openApi -> {
             Components components = openApi.getComponents();
+            Paths paths = openApi.getPaths();
+            if (paths == null) {
+                paths = new Paths();
+                openApi.setPaths(paths);
+            }
             addContractSchemas(components);
-            addBookContracts(openApi.getPaths());
-            addAdminContentContracts(openApi.getPaths());
-            addSummaryContracts(openApi.getPaths());
-            addSceneContracts(openApi.getPaths());
-            addQuizContracts(openApi.getPaths());
+            addBookContracts(paths);
+            addAdminContentContracts(paths);
+            addSummaryContracts(paths);
+            addSceneContracts(paths);
+            addQuizContracts(paths);
         };
     }
 
-    private void addBookContracts(io.swagger.v3.oas.models.Paths paths) {
+    private void addBookContracts(Paths paths) {
         add(paths, "/books", PathItem.HttpMethod.GET,
                 operation("Books", "도서 목록 조회", "장르, 국가, 정렬, 페이지네이션 조건으로 도서 목록을 조회합니다.", false, "BookPageResponse")
                         .addParametersItem(query("genre", "장르 코드", new StringSchema()))
@@ -70,7 +76,7 @@ public class OpenApiContractConfig {
                         .addParametersItem(query("size", "페이지 크기", int32())));
     }
 
-    private void addAdminContentContracts(io.swagger.v3.oas.models.Paths paths) {
+    private void addAdminContentContracts(Paths paths) {
         add(paths, "/admin/books", PathItem.HttpMethod.POST,
                 operation("Admin Books", "관리자 도서 등록", "관리자가 도서 메타데이터를 등록합니다.", true, "AdminBookResponse")
                         .requestBody(jsonBody("AdminBookCreateRequest")));
@@ -83,7 +89,7 @@ public class OpenApiContractConfig {
                         .addParametersItem(path("jobId", "Job ID")));
     }
 
-    private void addSummaryContracts(io.swagger.v3.oas.models.Paths paths) {
+    private void addSummaryContracts(Paths paths) {
         add(paths, "/books/{bookId}/summaries", PathItem.HttpMethod.POST,
                 operation("Summaries", "AI 요약 생성 요청", "도서 또는 챕터 범위의 RAG 기반 요약 생성 Job을 요청합니다.", true, "SummaryJobResponse")
                         .addParametersItem(path("bookId", "도서 ID"))
@@ -106,7 +112,7 @@ public class OpenApiContractConfig {
                         .requestBody(jsonBody("SummaryFeedbackRequest")));
     }
 
-    private void addSceneContracts(io.swagger.v3.oas.models.Paths paths) {
+    private void addSceneContracts(Paths paths) {
         add(paths, "/books/{bookId}/scenes", PathItem.HttpMethod.GET,
                 operation("Scenes", "도서 장면 목록 조회", "도서에서 추출된 주요 장면 목록을 조회합니다.", true, "SceneListResponse")
                         .addParametersItem(path("bookId", "도서 ID"))
@@ -124,7 +130,7 @@ public class OpenApiContractConfig {
                         .addParametersItem(path("illustrationId", "일러스트 ID")));
     }
 
-    private void addQuizContracts(io.swagger.v3.oas.models.Paths paths) {
+    private void addQuizContracts(Paths paths) {
         add(paths, "/books/{bookId}/quizzes", PathItem.HttpMethod.POST,
                 operation("Quizzes", "객관식 퀴즈 생성 요청", "도서 또는 챕터 범위의 객관식 퀴즈 생성 Job을 요청합니다.", true, "QuizJobResponse")
                         .addParametersItem(path("bookId", "도서 ID"))
@@ -165,7 +171,7 @@ public class OpenApiContractConfig {
         return operation;
     }
 
-    private void add(io.swagger.v3.oas.models.Paths paths, String path, PathItem.HttpMethod method, Operation operation) {
+    private void add(Paths paths, String path, PathItem.HttpMethod method, Operation operation) {
         PathItem pathItem = paths.get(path);
         if (pathItem == null) {
             pathItem = new PathItem();
