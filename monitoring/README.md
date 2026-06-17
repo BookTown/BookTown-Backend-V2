@@ -47,10 +47,12 @@ CERTBOT_EMAIL=you@example.com sudo -E ./scripts/install-grafana-nginx.sh
 ```env
 GRAFANA_ADMIN_USER=admin
 GRAFANA_ADMIN_PASSWORD=change-me
-GRAFANA_ROOT_URL=http://localhost:3001
+GRAFANA_ROOT_URL=https://grafana.booktown.shop
 MYSQL_BACKUP_INTERVAL_SECONDS=86400
 MYSQL_BACKUP_RETENTION_DAYS=7
 ```
+
+SSH 포워딩으로만 Grafana를 볼 때는 `GRAFANA_ROOT_URL=http://localhost:3001`을 사용할 수 있지만, 배포형 접근을 적용하면 위 값처럼 운영 도메인으로 맞춥니다.
 
 ## 수집 대상
 
