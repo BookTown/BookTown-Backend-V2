@@ -40,6 +40,7 @@ public class SecurityConfig {
             "/auth/login",
             "/auth/reissue",
             "/auth/oauth2/**",
+            "/actuator/**",
             "/v3/api-docs/**",
             "/swagger-ui/**",
             "/swagger-ui.html"
