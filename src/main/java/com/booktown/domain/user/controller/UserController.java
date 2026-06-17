@@ -5,6 +5,9 @@ import com.booktown.domain.user.dto.UpdateProfileRequest;
 import com.booktown.domain.user.dto.UserResponse;
 import com.booktown.domain.user.service.UserService;
 import com.booktown.global.response.ApiResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -17,16 +20,19 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/users")
+@Tag(name = "Users", description = "내 사용자 정보와 프로필 API")
 public class UserController {
 
     private final UserService userService;
 
     @GetMapping("/me")
+    @Operation(summary = "내 정보 조회", description = "로그인 사용자의 프로필 정보를 조회합니다.", security = @SecurityRequirement(name = "bearerAuth"))
     public ApiResponse<UserResponse> getMe(@AuthenticationPrincipal UserPrincipal principal) {
         return ApiResponse.success(userService.getMe(principal.getId()));
     }
 
     @PatchMapping("/me")
+    @Operation(summary = "내 프로필 수정", description = "닉네임과 프로필 이미지 URL을 수정합니다.", security = @SecurityRequirement(name = "bearerAuth"))
     public ApiResponse<UserResponse> updateMe(
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody UpdateProfileRequest request
