@@ -77,8 +77,9 @@ jobs:
         run: |
           docker run --rm \
             -v "$PWD/monitoring/prometheus:/etc/prometheus:ro" \
+            --entrypoint promtool \
             prom/prometheus:v2.55.1 \
-            promtool check config /etc/prometheus/prometheus.yml
+            check config /etc/prometheus/prometheus.yml
 
       - name: k6 스크립트 검증
         run: |
